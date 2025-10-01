@@ -1,0 +1,221 @@
+---
+title: "Forklaring av (univariat) regresjonsmodell"
+format: typst
+---
+
+
+## Modellen 
+
+I eksemplet bruker vi assosiasjonen mellom VO~2max~ og høyde i `cyclingstudy`.
+
+Modellen er: 
+
+$$
+\begin{align}
+\text{VO}_{2\text{max}[i]} &\sim \operatorname{Normal}(\mu_i, \sigma) \\
+\mu_i &= \beta_0 + \beta_1 \times \text{høyde}_i
+\end{align}
+$$
+
+
+
+```{r}
+
+# In R:
+
+library(tidyverse)
+library(gt)
+
+# Load data 
+dat <- exscidata::cyclingstudy |> 
+      
+      filter(timepoint == "pre") |> 
+      select(height.T1, VO2.max)
+
+
+
+# Summary statistics
+dat |> 
+      pivot_longer(everything()) |> 
+      
+      summarise(.by = name, 
+                m = mean(value), 
+                s = sd(value), 
+                n = n()) |> 
+      gt()
+
+```
+
+```{r}
+
+# Fit model
+m <- lm(VO2.max ~ height.T1, data = dat)
+
+# Intercept 
+intercept <- coef(m)[1]
+
+# Slope 
+slope <- coef(m)[2]
+
+# Antall obs
+n <- 20
+
+
+# A plot
+dat |> 
+      ggplot(aes(height.T1, VO2.max)) + geom_point() + 
+      
+      geom_abline(intercept = coef(m)[1], 
+                  slope = coef(m)[2])
+
+
+
+
+
+```
+
+
+## Residualene
+
+Vi kan bruke modellformuleringen for å beregne predikerte verdier
+
+$$
+\hat{y}_i = \beta_0 + \beta_1 \times \text{høyde}_i
+$$
+
+Residualene er beregnet som
+
+$$
+\text{Residual} = y_i - \hat{y}_i
+$$
+
+
+
+
+```{r}
+
+# Predikerte verdier
+ypred <- intercept + slope * dat$height.T1
+
+
+# Residualer
+res <- dat$VO2.max - ypred
+
+
+# A plot of residuals
+
+
+
+
+```
+
+
+I JASP
+
+- R: Korrelasjonskoeffisienten
+- R^2^: "Proportion of variance explained"
+- Adjusted R^2^: "Adjusted variance explained" &rarr; in the population
+- RMSE (Root mean squared error): 
+
+$$
+\text{RMSE} = \sqrt{\frac{\sum_{i=1}^n (y_i - \hat{y}_i)^2}{n-2}} = \hat{\sigma}
+$$
+
+
+
+```{r}
+
+r <- cor(dat$height.T1, dat$VO2.max) 
+r2 <- r^2
+
+rmse <- sqrt(sum(res^2) / (n-2))
+
+```
+
+## ANOVA
+
+- ANOVA-tabellen gir et ratio av varians for regresionslinjen mot varians i dataene, 
+hvor mye forklarer modellen?
+
+
+```{r}
+
+# Sum of square regression model 
+ssr <- sum((ypred - mean(dat$VO2.max))^2)
+
+# Resid sum of squares
+sse <- sum( (dat$VO2.max - ypred )^2 )
+
+
+F.ratio <- (ssr/1) / (sse/(n-2)) 
+
+# F is also 
+r2 * (n-2) / (1-r2)
+
+
+```
+
+```{r}
+
+
+dat |> 
+      ggplot(aes(height.T1, VO2.max)) +
+      theme_classic() +
+      # Data punkter
+      geom_point() +
+      # Gjennomsnitt y
+      geom_hline(yintercept = mean(dat$VO2.max), 
+                 color = "orange") + 
+      # Modellen 
+      geom_abline(intercept = intercept, 
+                  slope = slope, 
+                  color = "blue") + 
+      # SSR
+      geom_segment(aes(x = height.T1 - 0.2, 
+                       xend = height.T1 - 0.2, 
+                       y = mean(VO2.max), 
+                       yend = ypred), 
+                   color = "green") +
+      
+      # SSE
+            geom_segment(aes(x = height.T1 + 0.2, 
+                       xend = height.T1 + 0.2, 
+                       y = VO2.max, 
+                       yend = VO2.max - res), 
+                       color = "red") 
+
+      
+
+
+
+
+
+```
+
+## Diagnostikk
+
+
+```{r}
+
+plot(m)
+
+
+
+```
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
